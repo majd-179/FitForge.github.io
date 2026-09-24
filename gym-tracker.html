@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>سجل تمارين النادي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#111316; --bg-2:#0c0d0f; --card:#1a1c20; --card-2:#1f2226;
+  --ink:#f3f4f1; --sub:#93968f; --line:#2a2d31;
+  --flame:#ff5a36; --lime:#c8f31d; --flame-ink:#151312;
+}
+:root[data-theme="light"]{
+  --bg:#f3f2ee; --bg-2:#e9e7e0; --card:#ffffff; --card-2:#faf9f6;
+  --ink:#17181a; --sub:#6c6d68; --line:#e1ded5;
+  --flame:#e34a25; --lime:#7ea60f; --flame-ink:#ffffff;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:'Tajawal','Segoe UI',system-ui,sans-serif;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  min-height:100%; position:relative; overflow-x:hidden;
+}
+
+.bg-field{
+  position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;
+  background:var(--bg-2);
+}
+.bg-field span{
+  position:absolute; border-radius:50%; filter:blur(60px); opacity:.28;
+  will-change:transform;
+}
+.b1{width:340px; height:340px; background:var(--flame); top:-120px; right:-80px; animation:drift1 26s ease-in-out infinite;}
+.b2{width:280px; height:280px; background:var(--lime); bottom:-100px; left:-60px; animation:drift2 32s ease-in-out infinite;}
+.b3{width:220px; height:220px; background:var(--flame); bottom:20%; right:15%; opacity:.14; animation:drift3 40s ease-in-out infinite;}
+@keyframes drift1{
+  0%,100%{transform:translate(0,0) scale(1)}
+  50%{transform:translate(-30px,40px) scale(1.12)}
+}
+@keyframes drift2{
+  0%,100%{transform:translate(0,0) scale(1)}
+  50%{transform:translate(35px,-30px) scale(1.08)}
+}
+@keyframes drift3{
+  0%,100%{transform:translate(0,0)}
+  50%{transform:translate(-20px,-25px)}
+}
+@media (prefers-reduced-motion: reduce){
+  .bg-field span{animation:none}
+}
+
+.content{position:relative; z-index:1}
+
+header{
+  padding:34px 16px 18px; text-align:center;
+}
+.kicker{
+  font-size:13px; color:var(--flame); font-weight:700; margin:0 0 6px;
+}
+header h1{
+  margin:0; font-size:30px; font-weight:900; letter-spacing:-.3px;
+}
+header p{margin:6px 0 0; color:var(--sub); font-size:14px}
+
+.wrap{max-width:520px; margin:0 auto; padding:0 14px 90px}
+
+.card{
+  background:var(--card); border:1px solid var(--line); border-radius:18px;
+  padding:18px; margin-bottom:14px;
+}
+
+.row{display:flex; gap:8px}
+label{font-size:12px; color:var(--sub); display:block; margin:10px 0 5px; font-weight:500}
+input, select{
+  width:100%; padding:12px 13px; border-radius:12px; border:1px solid var(--line);
+  background:var(--card-2); color:var(--ink); font-size:15px; font-family:inherit;
+  transition:border-color .15s;
+}
+input:focus, select:focus{outline:none; border-color:var(--flame)}
+
+button{
+  border:none; border-radius:12px; padding:12px 16px; font-size:15px; font-family:inherit;
+  cursor:pointer;
+}
+.btn-primary{
+  background:var(--flame); color:var(--flame-ink); width:100%; margin-top:14px; font-weight:700;
+  transition:transform .1s;
+}
+.btn-primary:active{transform:scale(.98)}
+
+.ex-item{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:13px 0; border-bottom:1px solid var(--line);
+}
+.ex-item:last-child{border-bottom:none}
+.ex-name{font-weight:700}
+.ex-sub{color:var(--sub); font-size:13px; margin-top:2px}
+.del{background:transparent; color:var(--sub); font-size:13px; padding:4px 8px}
+.del:hover{color:var(--flame)}
+.empty{text-align:center; color:var(--sub); padding:26px 0; font-size:14px}
+.section-title{font-size:14px; color:var(--ink); margin:0 0 10px; font-weight:700}
+.hist-date{font-size:12px; color:var(--lime); margin:14px 0 6px; font-weight:700}
+.hist-date:first-child{margin-top:0}
+
+.tabs{display:flex; gap:8px; margin-bottom:16px}
+.tab{
+  flex:1; text-align:center; padding:11px; border-radius:12px; background:var(--card);
+  border:1px solid var(--line); color:var(--sub); font-size:14px; font-weight:700;
+  cursor:pointer; transition:background .15s, color .15s;
+}
+.tab.active{background:var(--flame); color:var(--flame-ink); border-color:var(--flame)}
+.status{text-align:center; font-size:13px; color:var(--lime); padding:8px 0; min-height:18px; font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="bg-field"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div>
+
+<div class="content">
+<header>
+  <p class="kicker">النادي</p>
+  <h1>سجل تمارينك</h1>
+  <p>وزن، مجموعات، وتكرارات — كل تمرين بمكانه</p>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" id="tabLog" onclick="switchTab('log')">تسجيل تمرين</div>
+    <div class="tab" id="tabHist" onclick="switchTab('hist')">السجل</div>
+  </div>
+
+  <div id="viewLog">
+    <div class="card">
+      <label>اسم التمرين</label>
+      <input id="exName" list="exSuggest" placeholder="مثال: ضغط بنش">
+      <datalist id="exSuggest"></datalist>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>الوزن (كغ)</label>
+          <input id="exWeight" type="number" step="0.5" min="0" placeholder="40">
+        </div>
+        <div style="flex:1">
+          <label>مجموعات</label>
+          <input id="exSets" type="number" min="1" placeholder="3">
+        </div>
+        <div style="flex:1">
+          <label>تكرارات</label>
+          <input id="exReps" type="number" min="1" placeholder="10">
+        </div>
+      </div>
+      <button class="btn-primary" onclick="addEntry()">حفظ التمرين</button>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">آخر ما سجلته اليوم</p>
+      <div id="todayList"><div class="empty">لسا ما سجلت شي اليوم</div></div>
+    </div>
+  </div>
+
+  <div id="viewHist" style="display:none">
+    <div class="card">
+      <p class="section-title">كل السجلات</p>
+      <div id="fullHistory"><div class="empty">جاري التحميل...</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Firebase Web SDK (compat build عبر CDN - بدون npm أو import) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script>
+/* ===== إعدادات Firebase ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDFlmyoskDZVLBIbVjkG2hSyAqgfLN0MsA",
+  authDomain: "fitforge-e2cd9.firebaseapp.com",
+  databaseURL: "https://fitforge-e2cd9-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "fitforge-e2cd9",
+  storageBucket: "fitforge-e2cd9.firebasestorage.app",
+  messagingSenderId: "99132826983",
+  appId: "1:99132826983:web:b45b7453d0c5b9eac7bbc2",
+  measurementId: "G-9GGTJFR7CJ"
+};
+
+/* مسار البيانات داخل Realtime Database: gym/entries/{id} */
+const ENTRIES_PATH = 'gym/entries';
+
+/* يرجّع مرجع (ref) لمسار التمارين، أو null إذا الـ SDK ما انحمّل */
+function initFirebase(){
+  if(typeof firebase === 'undefined') return null;
+  if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  return firebase.database().ref(ENTRIES_PATH);
+}
+</script>
+
+<script>
+let db = null;      // مرجع Firebase (أو null = وضع التخزين المحلي الاحتياطي)
+let entries = [];
+
+function fmtDate(ts){
+  const d = new Date(ts);
+  return d.toLocaleDateString('ar-EG', {day:'numeric', month:'short'}) + ' - ' +
+         d.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+}
+
+function todayKey(){
+  return new Date().toDateString();
+}
+
+function switchTab(t){
+  document.getElementById('tabLog').classList.toggle('active', t==='log');
+  document.getElementById('tabHist').classList.toggle('active', t==='hist');
+  document.getElementById('viewLog').style.display = t==='log' ? '' : 'none';
+  document.getElementById('viewHist').style.display = t==='hist' ? '' : 'none';
+  if(t==='hist') renderHistory();
+}
+
+function renderToday(){
+  const todayEl = document.getElementById('todayList');
+  const today = entries.filter(e => new Date(e.ts).toDateString() === todayKey());
+  if(!today.length){ todayEl.innerHTML = '<div class="empty">لسا ما سجلت شي اليوم</div>'; return; }
+  todayEl.innerHTML = today.slice().reverse().map(e => `
+    <div class="ex-item">
+      <div>
+        <div class="ex-name">${escapeHtml(e.name)}</div>
+        <div class="ex-sub">${e.weight} كغ &middot; ${e.sets} مجموعات &middot; ${e.reps} تكرار</div>
+      </div>
+      <button class="del" onclick="deleteEntry('${e.id}')">حذف</button>
+    </div>
+  `).join('');
+}
+
+function renderHistory(){
+  const el = document.getElementById('fullHistory');
+  if(!entries.length){ el.innerHTML = '<div class="empty">ما في تمارين مسجلة بعد</div>'; return; }
+  const byDate = {};
+  entries.forEach(e => {
+    const d = new Date(e.ts).toDateString();
+    (byDate[d] = byDate[d] || []).push(e);
+  });
+  const dates = Object.keys(byDate).sort((a,b) => new Date(b) - new Date(a));
+  el.innerHTML = dates.map(d => `
+    <div class="hist-date">${new Date(d).toLocaleDateString('ar-EG', {weekday:'long', day:'numeric', month:'long'})}</div>
+    ${byDate[d].slice().reverse().map(e => `
+      <div class="ex-item">
+        <div>
+          <div class="ex-name">${escapeHtml(e.name)}</div>
+          <div class="ex-sub">${e.weight} كغ &middot; ${e.sets} مجموعات &middot; ${e.reps} تكرار</div>
+        </div>
+        <button class="del" onclick="deleteEntry('${e.id}')">حذف</button>
+      </div>
+    `).join('')}
+  `).join('');
+}
+
+function updateSuggestions(){
+  const names = [...new Set(entries.map(e => e.name))];
+  document.getElementById('exSuggest').innerHTML = names.map(n => `<option value="${escapeHtml(n)}">`).join('');
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function setStatus(msg){
+  const s = document.getElementById('status');
+  s.textContent = msg;
+  if(msg) setTimeout(() => { if(s.textContent===msg) s.textContent=''; }, 2500);
+}
+
+async function addEntry(){
+  const name = document.getElementById('exName').value.trim();
+  const weight = document.getElementById('exWeight').value;
+  const sets = document.getElementById('exSets').value;
+  const reps = document.getElementById('exReps').value;
+  if(!name || !weight || !sets || !reps){
+    setStatus('عبّي كل الحقول لو سمحت');
+    return;
+  }
+  const entry = {
+    id: 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    name, weight: Number(weight), sets: Number(sets), reps: Number(reps),
+    ts: Date.now()
+  };
+  entries.push(entry);
+  await saveEntry(entry);
+  document.getElementById('exWeight').value = '';
+  document.getElementById('exSets').value = '';
+  document.getElementById('exReps').value = '';
+  renderToday();
+  updateSuggestions();
+  setStatus('تم الحفظ');
+}
+
+async function deleteEntry(id){
+  entries = entries.filter(e => e.id !== id);
+  await removeEntry(id);
+  renderToday();
+  renderHistory();
+  updateSuggestions();
+}
+
+/* ===== التخزين: Firebase Realtime Database (مع احتياطي localStorage) ===== */
+function saveLocal(){
+  try{ localStorage.setItem('gym_entries_fallback', JSON.stringify(entries)); }catch(e){}
+}
+
+async function saveEntry(entry){
+  try{
+    if(db){
+      await db.child(entry.id).set(entry);
+    } else {
+      saveLocal();
+    }
+  }catch(err){
+    console.error('save failed', err);
+    setStatus('صار خطأ بالحفظ');
+  }
+}
+
+async function removeEntry(id){
+  try{
+    if(db){
+      await db.child(id).remove();
+    } else {
+      saveLocal();
+    }
+  }catch(err){
+    console.error('delete failed', err);
+    setStatus('صار خطأ بالحذف');
+  }
+}
+
+/* يحوّل بيانات Firebase (كائن) لمصفوفة مرتبة حسب الوقت */
+function snapshotToEntries(snap){
+  const val = snap.val() || {};
+  return Object.values(val)
+    .filter(e => e && e.name)
+    .sort((a,b) => a.ts - b.ts);
+}
+
+function refreshAll(){
+  renderToday();
+  updateSuggestions();
+  if(document.getElementById('viewHist').style.display !== 'none') renderHistory();
+}
+
+function loadLocal(){
+  try{
+    entries = JSON.parse(localStorage.getItem('gym_entries_fallback') || '[]');
+  }catch(err){
+    entries = [];
+  }
+  refreshAll();
+}
+
+function init(){
+  try{ db = initFirebase(); }catch(e){ console.error('firebase init failed', e); db = null; }
+
+  if(!db){ loadLocal(); return; }
+
+  // استماع لحظي: أي تغيير (من هذا الجهاز أو غيره) يحدّث الواجهة تلقائياً
+  db.on('value', snap => {
+    entries = snapshotToEntries(snap);
+    refreshAll();
+  }, err => {
+    console.error('firebase read failed', err);
+    setStatus('تعذّر الاتصال بقاعدة البيانات');
+    loadLocal();
+  });
+}
+
+init();
+</script>
+</body>
+</html>
