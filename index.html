@@ -92,6 +92,18 @@ button{
 }
 .btn-primary:active{transform:scale(.98)}
 
+.btn-secondary{
+  background:var(--card-2); color:var(--ink); width:100%; margin-top:10px; font-weight:700;
+  border:1px solid var(--line); transition:transform .1s;
+}
+.btn-secondary:active{transform:scale(.98)}
+
+.btn-link{
+  background:transparent; color:var(--sub); width:100%; margin-top:10px; font-weight:600;
+  font-size:13px; text-decoration:underline; padding:6px;
+}
+.btn-link:hover{color:var(--flame)}
+
 .ex-item{
   display:flex; justify-content:space-between; align-items:center;
   padding:13px 0; border-bottom:1px solid var(--line);
@@ -114,6 +126,35 @@ button{
 }
 .tab.active{background:var(--flame); color:var(--flame-ink); border-color:var(--flame)}
 .status{text-align:center; font-size:13px; color:var(--lime); padding:8px 0; min-height:18px; font-weight:700}
+.status.error{color:var(--flame)}
+
+/* شريط الحساب أعلى الصفحة */
+.acct-bar{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  max-width:520px; margin:0 auto; padding:10px 14px; direction:rtl;
+}
+.acct-email{
+  font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; flex:1;
+}
+.acct-logout{
+  background:var(--card); border:1px solid var(--line); color:var(--ink);
+  font-size:12px; font-weight:700; padding:7px 12px; border-radius:10px; flex-shrink:0;
+}
+.acct-logout:hover{color:var(--flame); border-color:var(--flame)}
+
+.auth-wrap{max-width:400px; margin:0 auto; padding:0 14px 60px}
+.auth-tabs{display:flex; gap:8px; margin-bottom:16px}
+.auth-tab{
+  flex:1; text-align:center; padding:11px; border-radius:12px; background:var(--card);
+  border:1px solid var(--line); color:var(--sub); font-size:14px; font-weight:700;
+  cursor:pointer; transition:background .15s, color .15s;
+}
+.auth-tab.active{background:var(--flame); color:var(--flame-ink); border-color:var(--flame)}
+.loading-screen{
+  display:flex; align-items:center; justify-content:center; min-height:60vh;
+  color:var(--sub); font-size:14px;
+}
 </style>
 </head>
 <body>
@@ -127,7 +168,38 @@ button{
   <p>وزن، مجموعات، وتكرارات — كل تمرين بمكانه</p>
 </header>
 
-<div class="wrap">
+<!-- شريط الحساب: يظهر فقط بعد تسجيل الدخول -->
+<div class="acct-bar" id="acctBar" style="display:none">
+  <span class="acct-email" id="acctEmail"></span>
+  <button class="acct-logout" onclick="logout()">تسجيل خروج</button>
+</div>
+
+<!-- شاشة التحميل الأولية (بانتظار معرفة حالة تسجيل الدخول) -->
+<div class="loading-screen" id="loadingScreen">جاري التحقق من الحساب...</div>
+
+<!-- شاشة تسجيل الدخول / إنشاء حساب -->
+<div class="auth-wrap" id="authView" style="display:none">
+  <div class="auth-tabs">
+    <div class="auth-tab active" id="authTabLogin" onclick="switchAuthTab('login')">تسجيل دخول</div>
+    <div class="auth-tab" id="authTabSignup" onclick="switchAuthTab('signup')">حساب جديد</div>
+  </div>
+
+  <div class="card">
+    <label>البريد الإلكتروني</label>
+    <input id="authEmail" type="email" placeholder="example@email.com" autocomplete="email">
+
+    <label>كلمة المرور</label>
+    <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password">
+
+    <button class="btn-primary" id="authSubmitBtn" onclick="submitAuth()">تسجيل دخول</button>
+    <button class="btn-link" onclick="forgotPassword()">نسيت كلمة المرور؟</button>
+
+    <div class="status" id="authStatus"></div>
+  </div>
+</div>
+
+<!-- التطبيق الفعلي: يظهر فقط بعد تسجيل الدخول -->
+<div class="wrap" id="appView" style="display:none">
   <div class="tabs">
     <div class="tab active" id="tabLog" onclick="switchTab('log')">تسجيل تمرين</div>
     <div class="tab" id="tabHist" onclick="switchTab('hist')">السجل</div>
@@ -175,6 +247,7 @@ button{
 <!-- Firebase Web SDK (compat build عبر CDN - بدون npm أو import) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
 <script>
 /* ===== إعدادات Firebase ===== */
@@ -189,20 +262,20 @@ const firebaseConfig = {
   measurementId: "G-9GGTJFR7CJ"
 };
 
-/* مسار البيانات داخل Realtime Database: gym/entries/{id} */
-const ENTRIES_PATH = 'gym/entries';
-
-/* يرجّع مرجع (ref) لمسار التمارين، أو null إذا الـ SDK ما انحمّل */
-function initFirebase(){
-  if(typeof firebase === 'undefined') return null;
+/* يهيّئ Firebase مرة واحدة فقط */
+function initFirebaseApp(){
+  if(typeof firebase === 'undefined') return false;
   if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-  return firebase.database().ref(ENTRIES_PATH);
+  return true;
 }
 </script>
 
 <script>
-let db = null;      // مرجع Firebase (أو null = وضع التخزين المحلي الاحتياطي)
+let db = null;          // مرجع Firebase Realtime Database لمسار المستخدم الحالي
+let auth = null;        // مرجع Firebase Auth
 let entries = [];
+let currentUid = null;
+let authMode = 'login';  // 'login' أو 'signup'
 
 function fmtDate(ts){
   const d = new Date(ts);
@@ -213,6 +286,124 @@ function fmtDate(ts){
 function todayKey(){
   return new Date().toDateString();
 }
+
+/* ================= واجهة تسجيل الدخول ================= */
+
+function switchAuthTab(mode){
+  authMode = mode;
+  document.getElementById('authTabLogin').classList.toggle('active', mode==='login');
+  document.getElementById('authTabSignup').classList.toggle('active', mode==='signup');
+  document.getElementById('authSubmitBtn').textContent = mode==='login' ? 'تسجيل دخول' : 'إنشاء حساب جديد';
+  setAuthStatus('');
+}
+
+function setAuthStatus(msg, isError){
+  const s = document.getElementById('authStatus');
+  s.textContent = msg;
+  s.classList.toggle('error', !!isError);
+}
+
+/* يترجم أكواد أخطاء Firebase Auth لرسائل عربية واضحة */
+function authErrorMessage(err){
+  const code = err && err.code;
+  switch(code){
+    case 'auth/invalid-email': return 'صيغة البريد الإلكتروني غير صحيحة';
+    case 'auth/missing-password': return 'الرجاء إدخال كلمة المرور';
+    case 'auth/weak-password': return 'كلمة المرور ضعيفة، لازم تكون 6 أحرف أو أكثر';
+    case 'auth/email-already-in-use': return 'هذا البريد مسجّل مسبقاً، جرّب تسجيل الدخول';
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password': return 'كلمة المرور غير صحيحة';
+    case 'auth/user-not-found': return 'ما في حساب بهذا البريد، جرّب إنشاء حساب جديد';
+    case 'auth/too-many-requests': return 'محاولات كثيرة، حاول بعد قليل';
+    case 'auth/network-request-failed': return 'تعذّر الاتصال بالإنترنت';
+    case 'auth/user-disabled': return 'هذا الحساب معطّل';
+    default: return 'حدث خطأ، حاول مرة ثانية';
+  }
+}
+
+async function submitAuth(){
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+
+  if(!email || !password){
+    setAuthStatus('عبّي البريد وكلمة المرور لو سمحت', true);
+    return;
+  }
+  if(!auth){
+    setAuthStatus('تعذّر الاتصال بخدمة تسجيل الدخول', true);
+    return;
+  }
+
+  setAuthStatus('لحظة...');
+  try{
+    if(authMode === 'login'){
+      await auth.signInWithEmailAndPassword(email, password);
+    } else {
+      await auth.createUserWithEmailAndPassword(email, password);
+    }
+    // onAuthStateChanged بيتولى إظهار التطبيق تلقائياً
+  }catch(err){
+    console.error('auth failed', err);
+    setAuthStatus(authErrorMessage(err), true);
+  }
+}
+
+async function forgotPassword(){
+  const email = document.getElementById('authEmail').value.trim();
+  if(!email){
+    setAuthStatus('اكتب بريدك الإلكتروني فوق أولاً، وبعدين اضغط "نسيت كلمة المرور"', true);
+    return;
+  }
+  if(!auth){
+    setAuthStatus('تعذّر الاتصال بخدمة تسجيل الدخول', true);
+    return;
+  }
+  try{
+    await auth.sendPasswordResetEmail(email);
+    setAuthStatus('تم إرسال رابط إعادة تعيين كلمة المرور لبريدك');
+  }catch(err){
+    console.error('reset failed', err);
+    setAuthStatus(authErrorMessage(err), true);
+  }
+}
+
+async function logout(){
+  try{
+    if(db) db.off();  // إيقاف الاستماع للمسار القديم قبل الخروج
+    if(auth) await auth.signOut();
+  }catch(err){
+    console.error('logout failed', err);
+  }
+}
+
+/* ================= التبديل بين الشاشات ================= */
+
+function showLoading(){
+  document.getElementById('loadingScreen').style.display = '';
+  document.getElementById('authView').style.display = 'none';
+  document.getElementById('appView').style.display = 'none';
+  document.getElementById('acctBar').style.display = 'none';
+}
+
+function showAuth(){
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('authView').style.display = '';
+  document.getElementById('appView').style.display = 'none';
+  document.getElementById('acctBar').style.display = 'none';
+  document.getElementById('authEmail').value = '';
+  document.getElementById('authPassword').value = '';
+  setAuthStatus('');
+}
+
+function showApp(user){
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('authView').style.display = 'none';
+  document.getElementById('appView').style.display = '';
+  document.getElementById('acctBar').style.display = '';
+  document.getElementById('acctEmail').textContent = user.email || '';
+}
+
+/* ================= تبويبات تسجيل/سجل التمارين ================= */
 
 function switchTab(t){
   document.getElementById('tabLog').classList.toggle('active', t==='log');
@@ -309,18 +500,13 @@ async function deleteEntry(id){
   updateSuggestions();
 }
 
-/* ===== التخزين: Firebase Realtime Database (مع احتياطي localStorage) ===== */
-function saveLocal(){
-  try{ localStorage.setItem('gym_entries_fallback', JSON.stringify(entries)); }catch(e){}
-}
+/* ===== التخزين: Firebase Realtime Database تحت مسار المستخدم gym/{uid}/entries ===== */
+/* (بدون احتياطي localStorage الآن، لأن البيانات مرتبطة بحساب المستخدم وتتطلب دخول) */
 
 async function saveEntry(entry){
+  if(!db){ setStatus('تعذّر الحفظ، الرجاء تسجيل الدخول من جديد'); return; }
   try{
-    if(db){
-      await db.child(entry.id).set(entry);
-    } else {
-      saveLocal();
-    }
+    await db.child(entry.id).set(entry);
   }catch(err){
     console.error('save failed', err);
     setStatus('صار خطأ بالحفظ');
@@ -328,12 +514,9 @@ async function saveEntry(entry){
 }
 
 async function removeEntry(id){
+  if(!db){ setStatus('تعذّر الحذف، الرجاء تسجيل الدخول من جديد'); return; }
   try{
-    if(db){
-      await db.child(id).remove();
-    } else {
-      saveLocal();
-    }
+    await db.child(id).remove();
   }catch(err){
     console.error('delete failed', err);
     setStatus('صار خطأ بالحذف');
@@ -354,28 +537,52 @@ function refreshAll(){
   if(document.getElementById('viewHist').style.display !== 'none') renderHistory();
 }
 
-function loadLocal(){
-  try{
-    entries = JSON.parse(localStorage.getItem('gym_entries_fallback') || '[]');
-  }catch(err){
-    entries = [];
-  }
+/* يبدأ الاستماع اللحظي لمسار بيانات المستخدم الحالي: gym/{uid}/entries */
+function listenToUserData(uid){
+  if(db) db.off();  // إيقاف أي استماع سابق قبل الاشتراك بمسار جديد
+  db = firebase.database().ref('gym/' + uid + '/entries');
+  entries = [];
   refreshAll();
-}
+  document.getElementById('fullHistory').innerHTML = '<div class="empty">جاري التحميل...</div>';
 
-function init(){
-  try{ db = initFirebase(); }catch(e){ console.error('firebase init failed', e); db = null; }
-
-  if(!db){ loadLocal(); return; }
-
-  // استماع لحظي: أي تغيير (من هذا الجهاز أو غيره) يحدّث الواجهة تلقائياً
   db.on('value', snap => {
     entries = snapshotToEntries(snap);
     refreshAll();
   }, err => {
     console.error('firebase read failed', err);
     setStatus('تعذّر الاتصال بقاعدة البيانات');
-    loadLocal();
+  });
+}
+
+/* ================= بدء التشغيل وربط حالة تسجيل الدخول ================= */
+
+function init(){
+  showLoading();
+
+  if(!initFirebaseApp()){
+    showAuth();
+    setAuthStatus('تعذّر تحميل خدمة تسجيل الدخول، تحقق من الاتصال بالإنترنت', true);
+    return;
+  }
+
+  auth = firebase.auth();
+
+  auth.onAuthStateChanged(user => {
+    if(user){
+      currentUid = user.uid;
+      showApp(user);
+      switchTab('log');
+      listenToUserData(user.uid);
+    } else {
+      currentUid = null;
+      if(db){ db.off(); db = null; }
+      entries = [];
+      showAuth();
+    }
+  }, err => {
+    console.error('auth state failed', err);
+    showAuth();
+    setAuthStatus('حدث خطأ في التحقق من الحساب', true);
   });
 }
 
